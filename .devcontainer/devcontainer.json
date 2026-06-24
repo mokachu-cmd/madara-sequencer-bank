@@ -1,6 +1,9 @@
 {
     "name": "Madara Starknet Environment",
-    "image": "://microsoft.com",
+    "image": "://mcr.microsoft.com",
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
     "customizations": {
         "vscode": {
             "extensions": [
