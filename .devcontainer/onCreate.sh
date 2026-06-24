@@ -6,7 +6,8 @@ sudo apt-get update
 sudo apt-get install -y gnupg lsb-release wget build-essential pkg-config libssl-dev
 
 echo "Fetching and executing LLVM 19 automated repository setup..."
-wget https://llvm.org
+# FIX: Pointed to the correct apt.llvm.org script path
+wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
 sudo ./llvm.sh 19
 
