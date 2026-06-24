@@ -1,36 +1,35 @@
 {
-  // Madara vscode task file
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run ",
+      "label": "1. Run Madara Private Appchain",
       "type": "shell",
-      "command": "cargo",
-      "args": ["run", "--release", "--", "--dev"],
+      "command": "export LLVM_SYS_190_PREFIX=/usr/lib/llvm-19 && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo run --bin madara --release -j 2 --no-default-features -- --name POCBank --devnet --base-path ../madara_db --chain-config-override=chain_id=PRIVATE_BANK_DEVNET,fee_token_multiplier=0",
       "group": {
         "kind": "build",
         "isDefault": true
       },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
       "presentation": {
         "reveal": "always",
-        "panel": "new"
+        "panel": "dedicated",
+        "group": "banking-services"
+      }
+    },
+    {
+      "label": "2. Run Banking Auth Server",
+      "type": "shell",
+      "command": "node server.js",
+      "runOptions": {
+        "runOn": "folderOpen"
       },
-      "problemMatcher": [
-        {
-          "owner": "rust",
-          "fileLocation": ["relative", "${workspaceRoot}"],
-          "pattern": {
-            "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "endLine": 4,
-            "endColumn": 5,
-            "severity": 6,
-            "message": 7
-          }
-        }
-      ]
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "banking-services"
+      }
     }
   ]
 }

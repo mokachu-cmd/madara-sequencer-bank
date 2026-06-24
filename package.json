@@ -4,5 +4,11 @@
     "markdownlint": "^0.38.0",
     "markdownlint-cli": "^0.45.0",
     "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "sqlite3": "^6.0.1"
   }
 }
