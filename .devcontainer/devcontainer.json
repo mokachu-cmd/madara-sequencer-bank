@@ -8,11 +8,14 @@
         "vscode": {
             "extensions": [
                 "rust-lang.rust-analyzer",
-                "tamasfe.even-better-toml"
+                "tamasfe.even-better-toml",
+                "vadimcn.vscode-lldb",
+                "starkware.cairo1"
             ]
         }
     },
     "updateContentCommand": "bash .devcontainer/onCreate.sh",
+    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y wget gnupg && wget -O - https://apt.llvm.org/llvm.sh | sudo bash -s -- 19 && sudo apt-get install -y libssl-dev pkg-config protobuf-compiler",
     "remoteEnv": {
         "LLVM_CONFIG_PATH": "/usr/bin/llvm-config-19"
     }
