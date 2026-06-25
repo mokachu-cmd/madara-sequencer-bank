@@ -92,11 +92,12 @@ app.post('/api/financial/transfer', async (req, res) => {
     } = req.body;
 
     const cleanAmount = parseFloat(amount);
-        // 1. Convert to Base Token Units (Fixed-point: 2 decimals for Bank Fiat Cents)
-        // Example: $99.99 becomes 9999 units. $5.50 becomes 550 units.
+
+    // 1. Convert to Base Token Units (2 decimals for Bank Fiat Cents)
+    // Example: $99.99 becomes 9999 units.
     const onChainAmountUnits = Math.round(cleanAmount * 100);
 
-    // Evaluate Progressive MFA using normalized dollar bounds
+    // 2. High Boundary Velocity Check
     if (cleanAmount > 100000) {
         return res.status(202).json({ 
             status: "Queued for Audit", 
@@ -105,34 +106,39 @@ app.post('/api/financial/transfer', async (req, res) => {
         });
     }
 
+    // 3. Fetch Sender Profile from database
     db.get(`SELECT * FROM users WHERE username = ?`, [senderUsername], async (err, sender) => {
         if (err || !sender) {
             return res.status(404).json({ error: "Sender profile error." });
         }
 
-        // Validate Baseline PIN
+        // 🌟 GOLDEN RULE: Transaction PIN must always be validated first, regardless of amount
         if (!transactionPin || transactionPin !== sender.transaction_pin) {
             return res.status(401).json({ error: "Security Exception", details: "Invalid Transaction PIN. Operation aborted." });
         }
 
-        // Progressive Step-Up checks using clear currency definitions
+        // 🛡️ PROGRESSIVE STEP-UP MFA EVALUATION
         if (cleanAmount > 10000 && cleanAmount <= 20000) {
+            // Tier 1: Requires Account Password
             if (!password || password !== sender.password) {
-                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 1: Valid Account Password required." });
+                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 1: Valid Account Password required for transfers between 10k and 20k." });
             }
         } 
         else if (cleanAmount > 20000 && cleanAmount <= 40000) {
+            // Tier 2: Requires Biometric/Passkey Success Flag
             if (!biometricValid) {
-                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 2: Biometric/Passkey signature required." });
+                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 2: Biometric verification or Device Passkey verification required." });
             }
         } 
         else if (cleanAmount > 40000 && cleanAmount <= 100000) {
+            // Tier 3: Requires Both Password AND Biometrics
             if (!password || password !== sender.password || !biometricValid) {
-                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 3: Password and Biometric verification required." });
+                return res.status(401).json({ error: "MFA Challenge Failed", details: "Tier 3: Extreme Value Transfer. Both password and biometric signatures must be supplied." });
             }
         }
 
-db.get(`SELECT blockchain_address FROM users WHERE account_number = ?`, [recipientAccountNumber], async (err, recipient) => {
+        // 4. Fetch Recipient Profile
+        db.get(`SELECT blockchain_address FROM users WHERE account_number = ?`, [recipientAccountNumber], async (err, recipient) => {
             if (err || !recipient || !recipient.blockchain_address) {
                 return res.status(404).json({ error: "Recipient bank account not found." });
             }
@@ -141,27 +147,14 @@ db.get(`SELECT blockchain_address FROM users WHERE account_number = ?`, [recipie
                 const formattedSenderAddress = num.toHex(sender.blockchain_address);
                 const formattedRecipientAddress = num.toHex(recipient.blockchain_address);
 
+                // 5. Initialize Starknet Account Abstracted Signer Object
                 const senderAccount = new Account({
                     provider: provider,
                     address: formattedSenderAddress,
                     signer: DEVNET_PRIVATE_KEY
                 });
 
-                // Fetch the network baseline nonce
-                const networkNonceStr = await provider.getNonceForAddress(formattedSenderAddress);
-                const networkNonce = Number(networkNonceStr);
-
-                // Initialize or synchronize our local in-memory cache tracking
-                if (nonceCache[formattedSenderAddress] === undefined || nonceCache[formattedSenderAddress] < networkNonce) {
-                    nonceCache[formattedSenderAddress] = networkNonce;
-                }
-
-                // Assign the correct sequential nonce to use
-                const finalNonceToUse = nonceCache[formattedSenderAddress];
-                
-                // Optimistically increment our cache for the next immediate inbound click
-                nonceCache[formattedSenderAddress]++;
-
+                // 6. Build the Cairo Contract Call
                 const transferCall = {
                     contractAddress: TOKEN_ADDRESS,
                     entrypoint: 'transfer',
@@ -172,12 +165,16 @@ db.get(`SELECT blockchain_address FROM users WHERE account_number = ?`, [recipie
                     ]
                 };
 
-                // Inject the enforced incremental nonce
+                console.log(`[Sequencer] Submitting transaction with native nonce auto-discovery...`);
+
+                // 7. Execute transaction utilizing native account auto-nonce parameters
                 const { transaction_hash } = await senderAccount.execute(transferCall, undefined, { 
-                    maxFee: 0,
-                    nonce: num.toHex(finalNonceToUse)
+                    maxFee: 0 
                 });
                 
+                // 8. Enforce backend execution block synchronization
+                await provider.waitForTransaction(transaction_hash);
+
                 res.json({
                     status: "Settled",
                     securityRating: cleanAmount > 10000 ? "MFA Verified (Step-Up Enforced)" : "Standard Authorized",
@@ -190,9 +187,7 @@ db.get(`SELECT blockchain_address FROM users WHERE account_number = ?`, [recipie
                 });
 
             } catch (txError) {
-                console.error(txError);
-                // If the transaction fails to broadcast completely, roll back the local cache sync
-                nonceCache[num.toHex(sender.blockchain_address)]--;
+                console.error("Broadcaster Fault:", txError.message);
                 res.status(500).json({ error: "Appchain Execution Fault", details: txError.message });
             }
         });
