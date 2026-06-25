@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sovereign Vault - Enterprise Dashboard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; max-width: 1200px; margin: 0 auto; }
+        .card { background: #1e293b; border: 1px solid #334155; padding: 25px; border-radius: 12px; }
+        h2 { color: #38bdf8; margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        label { display: block; margin: 15px 0 5px; color: #94a3b8; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 6px; box-sizing: border-box;}
+        button { background: #0284c7; color: white; border: none; padding: 12px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 20px; width: 100%; transition: 0.2s; }
+        button:hover { background: #0369a1; }
+        .mfa-group { border-left: 3px solid #f59e0b; padding-left: 15px; margin-top: 15px; background: #292524; padding: 10px; border-radius: 4px; }
+        pre { background: #020617; padding: 15px; border-radius: 8px; overflow-x: auto; color: #4ade80; border: 1px solid #1e293b; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h1 style="margin: 0; color: #fff;">Sovereign Vault</h1>
+        <p style="color: #94a3b8; margin: 5px 0 0;">Madara Private Appchain Gateway Interface</p>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Instant Liquidity Settlement</h2>
+            
+            <label>Sender Account Profile</label>
+            <select id="senderUsername">
+                <option value="client_alice">Alice (client_alice)</option>
+            </select>
+
+            <label>Recipient Bank Account Routing Number</label>
+            <input type="text" id="recipientAcc" value="BANK-USR-102">
+
+            <label>Settlement Amount (Units)</label>
+            <input type="number" id="amount" value="5000" oninput="evaluateMFALayers()">
+
+            <label style="color:#f43f5e; font-weight: bold;">Mandatory Baseline Transaction PIN</label>
+            <input type="password" id="pin" placeholder="Enter 4-digit PIN" maxlength="4">
+
+            <div id="mfaUI" class="mfa-group" style="display: none;">
+                <h4 style="margin:0 0 10px 0; color:#f59e0b;">Security Escalation Window</h4>
+                
+                <div id="passwordField" style="display: none;">
+                    <label>Account Passphrase</label>
+                    <input type="password" id="pwd" placeholder="Enter web profile password">
+                </div>
+                
+                <div id="biometricField" style="display: none; margin-top:10px;">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="bio" style="width:auto;"> Simulate WebAuthn Biometric/Passkey Success
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="executeTransfer()">Authorize & Broadcast Block</button>
+        </div>
+
+        <div class="card">
+            <h2>Real-Time Infrastructure Output</h2>
+            <p style="color: #94a3b8; font-size: 14px;">Cryptographic Payload Receipt logs:</p>
+            <pre id="output">System idle. Ready to test compliance parameters...</pre>
+        </div>
+    </div>
+
+    <script>
+        // Frontend logic to dynamically show step-up fields based on limits
+        function evaluateMFALayers() {
+            const val = parseFloat(document.getElementById('amount').value) || 0;
+            const mfaUI = document.getElementById('mfaUI');
+            const pwdField = document.getElementById('passwordField');
+            const bioField = document.getElementById('biometricField');
+
+            mfaUI.style.display = "none";
+            pwdField.style.display = "none";
+            bioField.style.display = "none";
+
+            if (val > 10000) {
+                mfaUI.style.display = "block";
+                if (val <= 20000) {
+                    pwdField.style.display = "block";
+                } else if (val <= 40000) {
+                    bioField.style.display = "block";
+                } else if (val <= 100000) {
+                    pwdField.style.display = "block";
+                    bioField.style.display = "block";
+                } else {
+                    mfaUI.style.display = "block";
+                    mfaUI.innerHTML = `<h4 style="margin:0; color:#ef4444;">MANUAL BOARD REVIEWS TRIGGERED (Amount > 100k)</h4>`;
+                }
+            }
+        }
+
+        async function executeTransfer() {
+            const output = document.getElementById('output');
+            output.innerText = "Broadcasting cryptographic transaction frame...";
+
+            const payload = {
+                senderUsername: document.getElementById('senderUsername').value,
+                recipientAccountNumber: document.getElementById('recipientAcc').value,
+                amount: document.getElementById('amount').value,
+                transactionPin: document.getElementById('pin').value,
+                password: document.getElementById('pwd').value || "",
+                biometricValid: document.getElementById('bio') ? document.getElementById('bio').checked : false
+            };
+
+            try {
+                const response = await fetch('/api/financial/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                output.innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                output.innerText = "Error calling endpoint: " + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
