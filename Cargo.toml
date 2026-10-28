@@ -102,7 +102,7 @@ mc-submit-tx = { path = "madara/crates/client/submit_tx" }
 mc-external-db = { path = "madara/crates/client/external_db" }
 
 # Madara misc
-# m-cairo-test-contracts = { path = "madara/crates/cairo-test-contracts" }
+m-cairo-test-contracts = { path = "madara/crates/cairo-test-contracts" }
 mc-e2e-tests = { path = "madara/crates/tests" }
 
 # Starknet dependencies

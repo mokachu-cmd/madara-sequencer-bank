@@ -1,3 +1,3 @@
 fn main() {
-    // No-op: Bypasses Docker artifact fetching for local development
+    // Bypassed: No Docker available in Codespace
 }
